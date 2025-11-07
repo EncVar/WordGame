@@ -1,15 +1,15 @@
 import { createMemoryHistory, createRouter } from 'vue-router';
-import Problem from './pages/Problem.vue';
 import Entry from './pages/Entry.vue';
+import Game from './pages/Game.vue';
 
 const routes = [
     {
-        path: '/problem',
-        component: Problem
-    },
-    {
         path: '/',
         component: Entry
+    },
+    {
+        path: '/group/:id',
+        component: Game
     }
 ]
 
