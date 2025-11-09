@@ -1,24 +1,52 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { router } from '../router';
+import Button from '../components/Button.vue';
+import Input from '../components/Input.vue';
+import { app } from '../main';
 
-let group = ref(null);
+let group = ref("");
 
-function join(): string {
-    router.replace(`/group/${group.value}`);
-    return `/group/${group.value}`
-    // if (group.value.toLowerCase() === "admin")
+if (app.$cookies.isKey("group"))
+    router.replace(`/group/${app.$cookies.get("group")}`);
+
+function join() {
+    if (group.value === "judge") {
+        router.replace("/judge");
+        return;
+    }
+    if (Number.isInteger(Number(group.value))) {
+        router.replace(`/group/${group.value}`);
+        app.$cookies.set("group", group.value, "1d");
+        return;
+    }
 }
 
+function onFocusOut() {
+    disabled.value = (
+        group.value === "" || (
+            group.value.toLowerCase() !== "judge" &&
+            group.value.toLowerCase() !== "admin" &&
+            !Number.isInteger(Number(group.value))
+        )
+    );
+}
+
+let disabled = ref(
+    group.value === "" || (
+        group.value.toLowerCase() !== "judge" &&
+        group.value.toLowerCase() !== "admin" &&
+        !Number.isInteger(Number(group.value))
+    )
+);
 </script>
 
 <template>
-    <div class="flex flex-row">
+    <div class="flex flex-row select-none">
         <h1 class="mt-90 text-6xl ml-auto">Join as group </h1>
-        <input v-model="group" class="h-15 mt-90 ml-5 mr-auto text-3xl w-20 bg-gray-500 rounded-2xl text-center"></input>
+        <Input v-model="group" class="mt-90 ml-5 mr-auto" @on-enter="join()" @focusout="onFocusOut()"/>
     </div>
-    <div class="ml-auto mr-auto mt-5 w-25 h-10 text-xl bg-gray-400 hover:bg-gray-500 active:bg-gray-600 rounded-3xl text-center pt-1.5 pb-auto"
-        @click="join()"> 
-       <p class="mt-auto mb-auto relative">Enter</p> 
-    </div>
+    <Button class="ml-auto mr-auto mt-10" @click="join()" :disabled="disabled">
+       <p class="mt-auto mb-auto ml-auto mr-auto relative items-center justify-center">Enter</p> 
+    </Button>
 </template>
