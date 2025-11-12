@@ -15,7 +15,7 @@ function join() {
         router.replace("/judge");
         return;
     }
-    if (Number.isInteger(Number(group.value))) {
+    if (Number.isInteger(Number(group.value)) && Number(group.value) >= 1 && Number(group.value) <= 7 ) {
         router.replace(`/group/${group.value}`);
         app.$cookies.set("group", group.value, "1d");
         return;
@@ -27,7 +27,8 @@ function onFocusOut() {
         group.value === "" || (
             group.value.toLowerCase() !== "judge" &&
             group.value.toLowerCase() !== "admin" &&
-            !Number.isInteger(Number(group.value))
+            !Number.isInteger(Number(group.value)) && 
+            Number(group.value) < 1 || Number(group.value) > 7 
         )
     );
 }
@@ -36,7 +37,8 @@ let disabled = ref(
     group.value === "" || (
         group.value.toLowerCase() !== "judge" &&
         group.value.toLowerCase() !== "admin" &&
-        !Number.isInteger(Number(group.value))
+        !Number.isInteger(Number(group.value)) && 
+        Number(group.value) < 1 || Number(group.value) > 7 
     )
 );
 </script>
