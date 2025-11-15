@@ -1,24 +1,39 @@
 <script setup lang="ts">
-import { ProblemStatus } from '../problem';
+import { ref, watch } from 'vue';
+import { ProblemList, ProblemStatus } from '../problem';
+import { getGroupStatus, nextProblem } from '../core';
 
-defineProps<{
-    enabled: boolean;
-    status: ProblemStatus;
+const props = defineProps<{
+    problemStatusList: Array<ProblemStatus>,
+    problemList: ProblemList,
+    group: number
 }>();
-;
+
+let progress = ref(0);
+
+watch(props.problemStatusList, () => {
+    let revealed = 0;
+    for (let problemStatus of props.problemStatusList) 
+        if (problemStatus !== 'unrevealed')
+            revealed++;
+    progress.value = revealed;
+})
+
+setInterval(async () => {
+    for (let groupStatus of await getGroupStatus()) {
+        if (groupStatus.id == props.group)
+            progress.value = groupStatus.progress
+    };
+}, 1000)
 </script>
 
 <template>
-    <div :class="'rounded-3xl h-full w-full flex justify-center items-center hover:shadow-md border border-gray-200 transition ease-in-out duration-200 hover:scale-101 ' + 
-        (status === 'solved' ? 'bg-green-700' : '') +
-        (status === 'failed' ? 'bg-red-700' : '') +
-        (status === 'judging' ? 'bg-yellow-700' : '') +
-        (status === 'answering' ? 'bg-gray-300' : '') ">
-        <h1 v-if="(!enabled) && status === 'unrevealed'" class="text-center">Unrevealed</h1>
-        <h1 v-if="enabled && status === 'unrevealed'" class="text-center">Click to reveal</h1>
-        <h1 v-if="status === 'judging'" class="text-center text-white">Judging</h1>
-        <h1 v-if="status === 'answering'" class="text-center">Answering</h1>
-        <h1 v-if="status === 'solved'" class="text-center text-white">Solved</h1>
-        <h1 v-if="status === 'failed'" class="text-center text-white">Failed</h1>
+    <div class="flex flex-col">
+        <div class="ml-3 mt-3 w-40 h-10 rounded-3xl bg-gray-300 flex items-center justify-center">
+            <h1 class="text-xl">Progress: {{ progress }}/4</h1>
+        </div>
+        <div v-if="progress === 0" class="transition duration-300 mt-3 mb-3 h-full w-auto ml-3 mr-3 border border-gray-300 rounded-[20px] flex items-center justify-center hover:shadow-md hover:active:scale-99" @click="nextProblem(Number(props.group))">
+            <h1 class="text-3xl">Click to start</h1>
+        </div>
     </div>
 </template>

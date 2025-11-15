@@ -2,70 +2,130 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate rocket;
+extern crate anyhow;
+extern crate dirs_next;
 extern crate lazy_static;
 
+use std::{cmp::max, time::{SystemTime, UNIX_EPOCH}};
+
+use lazy_static::lazy_static;
+use rand::{Rng, rng};
 use rocket::{http::Status, serde::json::Json, tokio::sync::Mutex};
 use rocket_cors::{AllowedOrigins, CorsOptions};
 use serde::{Deserialize, Serialize};
-use lazy_static::lazy_static;
 
 async fn start() {
     const GROUPS: u32 = 7;
     let problem_list = &mut PROBLEM_LIST.lock().await;
     problem_list.clear();
     for col in 1..=GROUPS {
-        problem_list.push(
-            ProblemListItem { 
-                status: ProblemStatus::Unrevealed, 
-                column: col, 
-                score: 100, 
-                problem: None, 
-                end: None,
-            }
-        );
-        problem_list.push(
-            ProblemListItem { 
-                status: ProblemStatus::Judging, 
-                column: col, 
-                score: 200, 
-                problem: None, 
-                end: None,
-            }
-        );
-        problem_list.push(
-            ProblemListItem { 
-                status: ProblemStatus::Failed, 
-                column: col, 
-                score: 300, 
-                problem: None, 
-                end: None,
-            }
-        );
-        problem_list.push(
-            ProblemListItem { 
-                status: ProblemStatus::Solved, 
-                column: col, 
-                score: 400, 
-                problem: None, 
-                end: None,
-            }
-        );
+        problem_list.push(ProblemListItem {
+            status: ProblemStatus::Unrevealed,
+            column: col,
+            score: 100,
+            problem: None,
+            end: None,
+        });
+        problem_list.push(ProblemListItem {
+            status: ProblemStatus::Unrevealed,
+            column: col,
+            score: 200,
+            problem: None,
+            end: None,
+        });
+        problem_list.push(ProblemListItem {
+            status: ProblemStatus::Unrevealed,
+            column: col,
+            score: 300,
+            problem: None,
+            end: None,
+        });
+        problem_list.push(ProblemListItem {
+            status: ProblemStatus::Unrevealed,
+            column: col,
+            score: 400,
+            problem: None,
+            end: None,
+        });
+    }
+
+    let group_status = &mut GROUP_STATUS.lock().await;
+    group_status.clear();
+    for col in 1..=GROUPS {
+        group_status.push(GroupStatus {
+            id: col as u16,
+            progress: 0_u16,
+            score: 0_u32,
+        });
     }
 }
 
 lazy_static! {
     static ref PROBLEM_LIST: Mutex<Vec<ProblemListItem>> = Mutex::new(Vec::new());
+    static ref GROUP_STATUS: Mutex<Vec<GroupStatus>> = Mutex::new(Vec::new());
+}
+
+fn get_problems_from_config() -> anyhow::Result<Vec<Problem>> {
+    let mut problems = Vec::new();
+    let config_dir = dirs_next::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    let problems_path = config_dir.join("wordgame").join("problems.json");
+    if !config_dir.join("wordgame").exists() {
+        std::fs::create_dir_all(config_dir.join("wordgame"))?;
+    }
+    if !problems_path.exists() {
+        std::fs::write(&problems_path, "[]")?;
+    }
+    if let Ok(data) = std::fs::read_to_string(problems_path)
+        && let Ok(parsed_problems) = serde_json::from_str::<Vec<Problem>>(&data)
+    {
+        problems = parsed_problems;
+    }
+    Ok(problems)
+}
+
+fn delete_problem_from_config(id: u32) -> anyhow::Result<()> {
+    let config_dir = dirs_next::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    let problems_path = config_dir.join("wordgame").join("problems.json");
+    let mut problems = get_problems_from_config()?;
+    problems.retain(|p| p.id != id);
+    let serialized = serde_json::to_string_pretty(&problems)?;
+    std::fs::write(problems_path, serialized)?;
+    Ok(())
+}
+
+fn upload_problem_to_config(problem: Problem) -> anyhow::Result<()> {
+    let config_dir = dirs_next::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    let problems_path = config_dir.join("wordgame").join("problems.json");
+    let mut problems = get_problems_from_config()?;
+    let mut max_id = 0;
+    for problem in problems.clone().into_iter() {
+        max_id = max(max_id, problem.id);
+    }
+    let mut problem = problem;
+    problem.id = max_id + 1;
+    problems.push(problem);
+    let serialized = serde_json::to_string_pretty(&problems)?;
+    std::fs::write(problems_path, serialized)?;
+    Ok(())
 }
 
 #[launch]
 async fn rocket() -> _ {
     start().await;
     rocket::build()
-        .mount("/api", routes![
-            start_game, 
-            get_problem_list,
-            get_all_problems
-        ])
+        .mount(
+            "/api",
+            routes![
+                start_game,
+                get_problem_list,
+                get_all_problems,
+                upload_problem,
+                delete_problem,
+                get_problem_from_id,
+                get_group_status,
+                next_problem
+            ],
+        )
         .attach(
             CorsOptions {
                 allowed_origins: AllowedOrigins::all(),
@@ -92,14 +152,13 @@ struct Problem {
     pub score: u32,
 }
 
-
 /**
  * Unrevealed -> (reveal)
  * Pending -> (submit)
  * Judging -> (judge)
  * Solved / Failed
  */
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "lowercase")]
 enum ProblemStatus {
     Unrevealed,
@@ -119,6 +178,14 @@ struct ProblemListItem {
     pub end: Option<u64>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "rocket::serde")]
+struct GroupStatus {
+    pub id: u16,
+    pub progress: u16,
+    pub score: u32,
+}
+
 #[post("/start")]
 async fn start_game() -> Status {
     start().await;
@@ -132,6 +199,94 @@ async fn get_problem_list() -> Json<Vec<ProblemListItem>> {
 }
 
 #[get("/problems/all")]
-async fn get_all_problems() -> Json<Vec<ProblemListItem>> {
-    Json(vec![])
+async fn get_all_problems() -> Json<Vec<Problem>> {
+    Json(get_problems_from_config().unwrap_or_default())
+}
+
+#[get("/problem/<id>")]
+async fn get_problem_from_id(id: u32) -> Json<Option<Problem>> {
+    let problems = get_problems_from_config().unwrap_or_default();
+    for problem in problems {
+        if problem.id == id {
+            return Json(Some(problem));
+        }
+    }
+    Json(None)
+}
+
+#[post("/problem/upload", data = "<data>")]
+async fn upload_problem(data: Json<Problem>) -> Status {
+    match upload_problem_to_config(data.0) {
+        Ok(_) => Status::Ok,
+        Err(_) => Status::Conflict,
+    }
+}
+
+#[delete("/problem/<id>")]
+async fn delete_problem(id: u32) -> Status {
+    match delete_problem_from_config(id) {
+        Ok(_) => Status::Ok,
+        Err(_) => Status::NotFound,
+    }
+}
+
+#[get("/group/status")]
+async fn get_group_status() -> Json<Vec<GroupStatus>> {
+    Json(GROUP_STATUS.lock().await.clone())
+}
+
+#[get("/group/<id>/next")]
+async fn next_problem(id: u32) -> Status {
+    let group_list = &mut GROUP_STATUS.lock().await;
+    let answering_problems = &mut PROBLEM_LIST.lock().await;
+    answering_problems.retain(|p| p.column == id && p.status == ProblemStatus::Answering);
+
+    let unrevealed_problems = &mut PROBLEM_LIST.lock().await;
+    unrevealed_problems.retain(|p| p.column == id && p.status == ProblemStatus::Unrevealed);
+
+    for i in 0..group_list.len() {
+        let group = &mut group_list[i];
+        if group.id == id as u16 {
+            if group.progress >= 4 {
+                return Status::Conflict;
+            }
+            group.progress += 1;
+            for i in 0..answering_problems.len() {
+                let current = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                group.score += (answering_problems[i].end.unwrap_or(current) - current) as u32;
+                if (answering_problems[i].end.unwrap_or(current) as i64 - current as i64) < 0 {
+                    answering_problems[i].status = ProblemStatus::Failed;
+                } else {
+                    answering_problems[i].status = ProblemStatus::Judging;
+                }
+            }
+
+            if unrevealed_problems.is_empty() {
+                return Status::Conflict;
+            }
+            let length = unrevealed_problems.len();
+            let random_problem = &mut unrevealed_problems[rng().random_range(0..length as u16) as usize];
+
+            let mut all_problems = get_problems_from_config().unwrap_or_default();
+            all_problems.retain(|p| p.score == random_problem.score);
+
+            if all_problems.is_empty() {
+                return Status::Conflict;
+            }
+            let total_length = all_problems.len();
+            random_problem.problem = Some(all_problems[rng().random_range(0..total_length as u16) as usize].clone());
+
+            let current = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+            random_problem.status = ProblemStatus::Answering;
+            random_problem.end = Some(current + random_problem.problem.clone().unwrap().limit as u64);
+            break;
+        }
+    }
+    Status::Ok
 }
