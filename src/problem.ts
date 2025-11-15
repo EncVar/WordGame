@@ -1,4 +1,4 @@
-export type ProblemStatus = 'unrevealed' | 'pending' | 'solved' | 'failed' | 'judging';
+export type ProblemStatus = 'unrevealed' | 'answering' | 'solved' | 'failed' | 'judging';
 
 export type Score = 100 | 200 | 300 | 400;
 
@@ -15,4 +15,5 @@ export type ProblemList = {
     score: Score;
     column: number;
     problem?: Problem;
+    end?: number;
 }[];

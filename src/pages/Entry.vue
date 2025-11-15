@@ -10,14 +10,22 @@ let group = ref("");
 if (app.$cookies.isKey("group"))
     router.replace(`/group/${app.$cookies.get("group")}`);
 
+if (app.$cookies.isKey("admin"))
+    router.replace("/admin");
+
 function join() {
     if (group.value === "judge") {
         router.replace("/judge");
         return;
     }
-    if (Number.isInteger(Number(group.value)) && Number(group.value) >= 1 && Number(group.value) <= 7 ) {
+    if (Number.isInteger(Number(group.value)) && Number(group.value) >= 1 && Number(group.value) <= 7) {
         router.replace(`/group/${group.value}`);
         app.$cookies.set("group", group.value, "1d");
+        return;
+    }
+    if (group.value.toLowerCase() === "admin") {
+        router.replace("/admin");
+        app.$cookies.set("admin", "1", "1d");
         return;
     }
 }

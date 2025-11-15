@@ -3,6 +3,7 @@ import Entry from './pages/Entry.vue';
 import Game from './pages/Game.vue';
 import JudgeEntry from './pages/JudgeEntry.vue';
 import Judge from './pages/Judge.vue';
+import Admin from './pages/Admin.vue';
 
 const routes: RouteRecordRaw[] = [
     {
@@ -20,6 +21,10 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/judge/:id',
         component: Judge
+    }, 
+    {
+        path: '/admin',
+        component: Admin
     }
 ]
 

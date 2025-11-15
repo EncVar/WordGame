@@ -20,6 +20,7 @@ async fn start() {
                 column: col, 
                 score: 100, 
                 problem: None, 
+                end: None,
             }
         );
         problem_list.push(
@@ -28,6 +29,7 @@ async fn start() {
                 column: col, 
                 score: 200, 
                 problem: None, 
+                end: None,
             }
         );
         problem_list.push(
@@ -36,6 +38,7 @@ async fn start() {
                 column: col, 
                 score: 300, 
                 problem: None, 
+                end: None,
             }
         );
         problem_list.push(
@@ -44,6 +47,7 @@ async fn start() {
                 column: col, 
                 score: 400, 
                 problem: None, 
+                end: None,
             }
         );
     }
@@ -59,7 +63,8 @@ async fn rocket() -> _ {
     rocket::build()
         .mount("/api", routes![
             start_game, 
-            get_problem_list
+            get_problem_list,
+            get_all_problems
         ])
         .attach(
             CorsOptions {
@@ -98,7 +103,7 @@ struct Problem {
 #[serde(crate = "rocket::serde", rename_all = "lowercase")]
 enum ProblemStatus {
     Unrevealed,
-    Pending,
+    Answering,
     Solved,
     Failed,
     Judging,
@@ -111,6 +116,7 @@ struct ProblemListItem {
     pub column: u32,
     pub score: u32,
     pub problem: Option<Problem>,
+    pub end: Option<u64>,
 }
 
 #[post("/start")]
@@ -123,4 +129,9 @@ async fn start_game() -> Status {
 async fn get_problem_list() -> Json<Vec<ProblemListItem>> {
     let problem_list = PROBLEM_LIST.lock().await;
     Json(problem_list.clone())
+}
+
+#[get("/problems/all")]
+async fn get_all_problems() -> Json<Vec<ProblemListItem>> {
+    Json(vec![])
 }

@@ -5,8 +5,9 @@ import { app } from '../main';
 import ProblemView from '../components/ProblemView.vue';
 import { ProblemStatus } from '../problem';
 import { getProblemList } from '../core';
+import { ref } from 'vue';
 
-let problemList = new Array<Array<ProblemStatus>>(8).fill(new Array(5).fill('unrevealed' as ProblemStatus));
+let problemList = ref(new Array<Array<ProblemStatus>>(8).fill(new Array(5).fill('unrevealed' as ProblemStatus)));
 
 function back() {
     router.replace("/");
@@ -19,8 +20,8 @@ function enabled(group: number) {
 
 setInterval(async () => {
     const list = await getProblemList();
-    for (let item of list) 
-        problemList[item.column][item.score / 100] = item.status;
+    for (let item of list)
+        problemList.value[item.column][item.score / 100] = item.status;
 }, 1000);
 </script>
 <template>
@@ -32,7 +33,7 @@ setInterval(async () => {
             <h1 class="mt-auto mb-auto ml-5">Playing as Group {{ $route.params.id }}</h1>
         </div>
 
-        <div class="grid grid-cols-8 grid-rows-5 h-[90%] w-[90%] mt-10 ml-auto mr-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2">
+        <div class="grid grid-cols-8 grid-rows-5 h-[80%] w-[90%] mt-10 ml-auto mr-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2">
             <div class="row-start-1 row-end-2 col-start-1 col-end-2 bg-gray-200 rounded-3xl"/>
             <div class="row-start-2 row-end-6 col-start-1 col-end-2 bg-gray-100 rounded-3xl flex flex-col pl-4 pr-4">
                 <div class="flex-auto flex justify-center items-center border-b border-b-gray-300">

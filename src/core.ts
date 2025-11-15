@@ -8,6 +8,11 @@ export async function getProblemList(): Promise<ProblemList> {
     return response.data;
 }
 
+export async function getAllProblems(): Promise<ProblemList> {
+    const response = await axios.get(`${API_BASE_URL}/problems/all`);
+    return response.data;
+}
+
 export async function getProblemAnswer(id: number): Promise<string> {
     const response = await axios.get(`${API_BASE_URL}/problem/${id}/answer`);
     return response.data;
