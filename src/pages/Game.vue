@@ -26,14 +26,11 @@ let progress = ref(0);
 
 setInterval(async () => {
     problemList.value = await getProblemList();
-    try {
-        for (let item of problemList.value)
-            problemStatusList.value[item.column][item.score / 100] = item.status;
-    } catch(e) {
-        console.log(e);
-        throw e;
-    }
-}, 1000);
+    let statusList = JSON.parse(JSON.stringify(problemStatusList.value));
+    for (let item of problemList.value) 
+        statusList[item.column][item.score / 100] = JSON.parse(JSON.stringify(item.status));
+    problemStatusList.value = statusList;
+}, 500);
 </script>
 <template>
     <div class="h-full select-none">
@@ -44,7 +41,7 @@ setInterval(async () => {
             <h1 class="mt-auto mb-auto ml-5">Playing as Group {{ $route.params.id }}</h1>
         </div>
         <div class="flex flex-row h-[90%] mt-2 mb-2">
-            <div class="transition duration-300 grid grid-cols-8 grid-rows-5 h-[90%] ml-auto mr-5 mt-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2" :class="{ 'w-[80%]': progress >= 4, 'w-[50%]': progress >= 0 && progress < 4 }">
+            <div class="transition duration-300 grid grid-cols-8 grid-rows-5 h-[90%] ml-auto mr-auto mt-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2 w-[50%]" :class="{ 'w-[80%]': progress >= 4, 'w-[50%]': progress >= 0 && progress < 4 }">
                 <div class="row-start-1 row-end-2 col-start-1 col-end-2 bg-gray-200 rounded-3xl"></div>
                 <div class="row-start-2 row-end-6 col-start-1 col-end-2 bg-gray-100 rounded-3xl flex flex-col pl-4 pr-4">
                     <div class="flex-auto flex justify-center items-center border-b border-b-gray-300">
@@ -112,7 +109,7 @@ setInterval(async () => {
                 <ProblemOverview :enabled="enabled(6)" :status="problemStatusList[6][4]"/>
                 <ProblemOverview :enabled="enabled(7)" :status="problemStatusList[7][4]"/>
             </div>
-            <ProblemView class="transition duration-300 h-[90%] ml-0 mr-auto mt-auto mb-auto border rounded-4xl border-gray-300 w-[40%]" :problem-status-list="problemStatusList[Number($route.params.id)]" :problem-list="problemList" :group="Number($route.params.id)"/>
+            <ProblemView :problem-status-list="problemStatusList[Number($route.params.id)]" :problem-list="problemList" :group="Number($route.params.id)"/>
         </div>
     </div>
 </template>

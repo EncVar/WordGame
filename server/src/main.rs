@@ -9,14 +9,14 @@ extern crate lazy_static;
 use std::{cmp::max, time::{SystemTime, UNIX_EPOCH}};
 
 use lazy_static::lazy_static;
-use rand::{Rng, rng};
+use rand::Rng;
 use rocket::{http::Status, serde::json::Json, tokio::sync::Mutex};
 use rocket_cors::{AllowedOrigins, CorsOptions};
 use serde::{Deserialize, Serialize};
 
 async fn start() {
     const GROUPS: u32 = 7;
-    let problem_list = &mut PROBLEM_LIST.lock().await;
+    let mut problem_list = PROBLEM_LIST.lock().await;
     problem_list.clear();
     for col in 1..=GROUPS {
         problem_list.push(ProblemListItem {
@@ -49,13 +49,14 @@ async fn start() {
         });
     }
 
-    let group_status = &mut GROUP_STATUS.lock().await;
+    let mut group_status = GROUP_STATUS.lock().await;
     group_status.clear();
     for col in 1..=GROUPS {
         group_status.push(GroupStatus {
             id: col as u16,
             progress: 0_u16,
             score: 0_u32,
+            end: false
         });
     }
 }
@@ -184,6 +185,7 @@ struct GroupStatus {
     pub id: u16,
     pub progress: u16,
     pub score: u32,
+    pub end: bool
 }
 
 #[post("/start")]
@@ -237,47 +239,67 @@ async fn get_group_status() -> Json<Vec<GroupStatus>> {
 
 #[get("/group/<id>/next")]
 async fn next_problem(id: u32) -> Status {
-    let group_list = &mut GROUP_STATUS.lock().await;
-    let answering_problems = &mut PROBLEM_LIST.lock().await;
-    answering_problems.retain(|p| p.column == id && p.status == ProblemStatus::Answering);
+    let mut group_list = GROUP_STATUS.lock().await;
+    let mut problem_list = PROBLEM_LIST.lock().await;
 
-    let unrevealed_problems = &mut PROBLEM_LIST.lock().await;
-    unrevealed_problems.retain(|p| p.column == id && p.status == ProblemStatus::Unrevealed);
+    let mut answering_indices: Vec<usize> = Vec::new();
+    let length = problem_list.len();
+    for i in 0..length {
+        let p: ProblemListItem = problem_list[i].clone();
+        if p.column == id && p.status == ProblemStatus::Answering {
+            answering_indices.push(i);
+        }
+    }
+
+    let mut unrevealed_indices: Vec<usize> = Vec::new();
+    for i in 0..problem_list.len() {
+        if problem_list[i].column == id && problem_list[i].status == ProblemStatus::Unrevealed {
+            unrevealed_indices.push(i);
+        }
+    }
 
     for i in 0..group_list.len() {
         let group = &mut group_list[i];
         if group.id == id as u16 {
-            if group.progress >= 4 {
-                return Status::Conflict;
-            }
-            group.progress += 1;
-            for i in 0..answering_problems.len() {
+            for &idx in &answering_indices {
                 let current = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs();
-                group.score += (answering_problems[i].end.unwrap_or(current) - current) as u32;
-                if (answering_problems[i].end.unwrap_or(current) as i64 - current as i64) < 0 {
-                    answering_problems[i].status = ProblemStatus::Failed;
+                let end = problem_list[idx].end.unwrap_or(current);
+                group.score += (end - current) as u32;
+                if (end as i64 - current as i64) < 0 {
+                    problem_list[idx].status = ProblemStatus::Failed;
                 } else {
-                    answering_problems[i].status = ProblemStatus::Judging;
+                    problem_list[idx].status = ProblemStatus::Judging;
                 }
             }
 
-            if unrevealed_problems.is_empty() {
+            if group.progress == 4 && !group.end {
+                group.end = true;
+                return Status::Ok;
+            }
+
+            if group.progress >= 4 {
                 return Status::Conflict;
             }
-            let length = unrevealed_problems.len();
-            let random_problem = &mut unrevealed_problems[rng().random_range(0..length as u16) as usize];
+            if answering_indices.len() == 1 || group.progress == 0 {
+                group.progress += 1;
+            }
+
+            let pick = rand::rng().random_range(0..unrevealed_indices.len());
+            let random_idx = unrevealed_indices[pick];
+            let random_problem = &mut problem_list[random_idx];
 
             let mut all_problems = get_problems_from_config().unwrap_or_default();
             all_problems.retain(|p| p.score == random_problem.score);
-
             if all_problems.is_empty() {
                 return Status::Conflict;
             }
+
             let total_length = all_problems.len();
-            random_problem.problem = Some(all_problems[rng().random_range(0..total_length as u16) as usize].clone());
+            let pick_problem = rand::rng().random_range(0..total_length);
+            random_problem.problem = Some(all_problems[pick_problem].clone());
 
             let current = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
