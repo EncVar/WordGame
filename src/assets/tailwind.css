@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+@font-face {
+    font-family: "Bahnschrift";
+    src: url("./bahnschrift.ttf");
+}

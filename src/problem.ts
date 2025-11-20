@@ -13,7 +13,7 @@ export interface Problem {
 export type ProblemList = {
     status: ProblemStatus;
     score: Score;
-    column: number;
+    group: number;
     problem?: Problem;
     end?: number;
 }[];

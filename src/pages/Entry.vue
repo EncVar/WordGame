@@ -13,6 +13,9 @@ if (app.$cookies.isKey("group"))
 if (app.$cookies.isKey("admin"))
     router.replace("/admin");
 
+if (app.$cookies.isKey("judge"))
+    router.replace(`/judge/${app.$cookies.get("judge")}`)
+
 function join() {
     if (group.value === "judge") {
         router.replace("/judge");

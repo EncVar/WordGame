@@ -6,7 +6,7 @@ extern crate anyhow;
 extern crate dirs_next;
 extern crate lazy_static;
 
-use std::{cmp::max, time::{SystemTime, UNIX_EPOCH}};
+use std::{cmp::max, collections::VecDeque, time::{SystemTime, UNIX_EPOCH}};
 
 use lazy_static::lazy_static;
 use rand::Rng;
@@ -18,45 +18,19 @@ async fn start() {
     const GROUPS: u32 = 7;
     let mut problem_list = PROBLEM_LIST.lock().await;
     problem_list.clear();
-    for col in 1..=GROUPS {
-        problem_list.push(ProblemListItem {
-            status: ProblemStatus::Unrevealed,
-            column: col,
-            score: 100,
-            problem: None,
-            end: None,
-        });
-        problem_list.push(ProblemListItem {
-            status: ProblemStatus::Unrevealed,
-            column: col,
-            score: 200,
-            problem: None,
-            end: None,
-        });
-        problem_list.push(ProblemListItem {
-            status: ProblemStatus::Unrevealed,
-            column: col,
-            score: 300,
-            problem: None,
-            end: None,
-        });
-        problem_list.push(ProblemListItem {
-            status: ProblemStatus::Unrevealed,
-            column: col,
-            score: 400,
-            problem: None,
-            end: None,
-        });
-    }
 
     let mut group_status = GROUP_STATUS.lock().await;
     group_status.clear();
+    group_status.push(GroupStatus {
+        id: 0,
+        progress: 0_u16,
+        end: None
+    });
     for col in 1..=GROUPS {
         group_status.push(GroupStatus {
             id: col as u16,
             progress: 0_u16,
-            score: 0_u32,
-            end: false
+            end: None
         });
     }
 }
@@ -64,6 +38,16 @@ async fn start() {
 lazy_static! {
     static ref PROBLEM_LIST: Mutex<Vec<ProblemListItem>> = Mutex::new(Vec::new());
     static ref GROUP_STATUS: Mutex<Vec<GroupStatus>> = Mutex::new(Vec::new());
+    static ref JUDGE_TASKS: Mutex<[VecDeque<u32>; 8]> = Mutex::new([
+        VecDeque::new(),
+        VecDeque::new(),
+        VecDeque::new(),
+        VecDeque::new(),
+        VecDeque::new(),
+        VecDeque::new(),
+        VecDeque::new(),
+        VecDeque::new()
+    ]);
 }
 
 fn get_problems_from_config() -> anyhow::Result<Vec<Problem>> {
@@ -124,7 +108,10 @@ async fn rocket() -> _ {
                 delete_problem,
                 get_problem_from_id,
                 get_group_status,
-                next_problem
+                finish,
+                reveal,
+                judge,
+                get_judge_task
             ],
         )
         .attach(
@@ -171,12 +158,12 @@ enum ProblemStatus {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
-struct ProblemListItem {
+struct ProblemListItem { 
+    pub index: u32, 
     pub status: ProblemStatus,
-    pub column: u32,
+    pub group: u32,
     pub score: u32,
     pub problem: Option<Problem>,
-    pub end: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -184,8 +171,7 @@ struct ProblemListItem {
 struct GroupStatus {
     pub id: u16,
     pub progress: u16,
-    pub score: u32,
-    pub end: bool
+    pub end: Option<u64>
 }
 
 #[post("/start")]
@@ -237,78 +223,116 @@ async fn get_group_status() -> Json<Vec<GroupStatus>> {
     Json(GROUP_STATUS.lock().await.clone())
 }
 
-#[get("/group/<id>/next")]
-async fn next_problem(id: u32) -> Status {
-    let mut group_list = GROUP_STATUS.lock().await;
-    let mut problem_list = PROBLEM_LIST.lock().await;
+#[get("/judge/<group>")]
+async fn get_judge_task(group: u32) -> Json<Option<Problem>> {
+    let judge_tasks = &mut JUDGE_TASKS.lock().await;
+    let problem_list = &PROBLEM_LIST.lock().await;
+    if judge_tasks.is_empty() {
+        return Json(None);
+    }
+    while !judge_tasks.is_empty() && judge_tasks[group as usize].front().is_none() {
+        judge_tasks[group as usize].pop_front();
+    }
+    Json(problem_list[*judge_tasks[group as usize].front().unwrap() as usize].problem.clone())
+}
+
+#[post("/judge/<group>/<result>")]
+async fn judge(group: u32, result: &str) -> Status {
+    let judge_tasks = &mut JUDGE_TASKS.lock().await;
+    let problem_list = &mut PROBLEM_LIST.lock().await;
+    if judge_tasks.is_empty() {
+        return Status::Conflict;
+    }
+    
+    match result {
+        "wrong" => {
+            problem_list[*judge_tasks[group as usize].front().unwrap() as usize].status = ProblemStatus::Failed;
+            judge_tasks[group as usize].pop_front();
+        },
+        "right" => {
+            problem_list[*judge_tasks[group as usize].front().unwrap() as usize].status = ProblemStatus::Solved;
+            judge_tasks[group as usize].pop_front();
+        },
+        _ => {
+            return Status::Conflict;
+        }
+    }
+    Status::Ok
+}
+
+#[get("/group/<id>/finish")]
+async fn finish(id: u32) -> Status {
+    let group_list = &mut GROUP_STATUS.lock().await;
+    let problem_list = &mut PROBLEM_LIST.lock().await;
+    let judge_tasks = &mut JUDGE_TASKS.lock().await;
 
     let mut answering_indices: Vec<usize> = Vec::new();
     let length = problem_list.len();
     for i in 0..length {
         let p: ProblemListItem = problem_list[i].clone();
-        if p.column == id && p.status == ProblemStatus::Answering {
+        if p.group == id && p.status == ProblemStatus::Answering {
             answering_indices.push(i);
-        }
-    }
-
-    let mut unrevealed_indices: Vec<usize> = Vec::new();
-    for i in 0..problem_list.len() {
-        if problem_list[i].column == id && problem_list[i].status == ProblemStatus::Unrevealed {
-            unrevealed_indices.push(i);
         }
     }
 
     for i in 0..group_list.len() {
         let group = &mut group_list[i];
         if group.id == id as u16 {
-            for &idx in &answering_indices {
+            if group.end.is_none() {
                 let current = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs();
-                let end = problem_list[idx].end.unwrap_or(current);
-                group.score += (end - current) as u32;
-                if (end as i64 - current as i64) < 0 {
+                group.end = Some(current + 900);
+            }
+            for &idx in &answering_indices {
+                let end = group.end.unwrap();
+                let current = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+                if end as i64 - current as i64 <= 0 {
                     problem_list[idx].status = ProblemStatus::Failed;
-                } else {
-                    problem_list[idx].status = ProblemStatus::Judging;
+                    continue;
                 }
+                
+                problem_list[idx].status = ProblemStatus::Judging;
+                judge_tasks[id as usize].push_back(idx as u32);
             }
 
-            if group.progress == 4 && !group.end {
-                group.end = true;
-                return Status::Ok;
-            }
-
-            if group.progress >= 4 {
-                return Status::Conflict;
-            }
             if answering_indices.len() == 1 || group.progress == 0 {
                 group.progress += 1;
             }
 
-            let pick = rand::rng().random_range(0..unrevealed_indices.len());
-            let random_idx = unrevealed_indices[pick];
-            let random_problem = &mut problem_list[random_idx];
-
-            let mut all_problems = get_problems_from_config().unwrap_or_default();
-            all_problems.retain(|p| p.score == random_problem.score);
-            if all_problems.is_empty() {
-                return Status::Conflict;
-            }
-
-            let total_length = all_problems.len();
-            let pick_problem = rand::rng().random_range(0..total_length);
-            random_problem.problem = Some(all_problems[pick_problem].clone());
-
-            let current = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs();
-            random_problem.status = ProblemStatus::Answering;
-            random_problem.end = Some(current + random_problem.problem.clone().unwrap().limit as u64);
             break;
         }
     }
+    Status::Ok
+}
+
+#[get("/group/<id>/reveal")]
+async fn reveal(id: u32) -> Status {
+    let problem_list = &mut PROBLEM_LIST.lock().await;
+    let all_problems = get_problems_from_config().unwrap_or_default();
+
+    if all_problems.is_empty() {
+        return Status::Conflict;
+    }
+
+    let total_length = all_problems.len();
+    let pick_problem = rand::rng().random_range(0..total_length);
+
+    let index = problem_list.len() as u32;
+    problem_list.push(
+        ProblemListItem { 
+            index, 
+            status: ProblemStatus::Answering, 
+            group: id, 
+            score: all_problems[pick_problem].score, 
+            problem: Some(all_problems[pick_problem].clone())
+        }
+    );
+
     Status::Ok
 }

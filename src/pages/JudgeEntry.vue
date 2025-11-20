@@ -3,11 +3,13 @@ import { ref } from 'vue';
 import { router } from '../router';
 import Button from '../components/Button.vue';
 import Input from '../components/Input.vue';
+import { app } from '../main';
 
 let judge = ref(null);
 
 function join() {
     router.replace(`/judge/${judge.value}`);
+    app.$cookies.set("judge", judge.value);
 }
 
 function back() {

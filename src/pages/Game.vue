@@ -10,7 +10,7 @@ import Button from '../components/Button.vue';
 import ProblemView from '../components/ProblemView.vue';
 import ProblemOverview from '../components/ProblemOverview.vue';
 
-let problemStatusList = ref(new Array<Array<ProblemStatus>>(8).fill(new Array(5).fill('unrevealed' as ProblemStatus)));
+let problemStatusList = ref(new Array<Array<ProblemStatus>>(8).fill([]));
 let problemList = ref([] as ProblemList);
 
 function back() {
@@ -26,11 +26,11 @@ let progress = ref(0);
 
 setInterval(async () => {
     problemList.value = await getProblemList();
-    let statusList = JSON.parse(JSON.stringify(problemStatusList.value));
+    //console.log(problemList.value);
     for (let item of problemList.value) 
-        statusList[item.column][item.score / 100] = JSON.parse(JSON.stringify(item.status));
-    problemStatusList.value = statusList;
-}, 500);
+        if (problemStatusList.value[item.group])
+            problemStatusList.value[item.group].push(item.status);
+}, 300);
 </script>
 <template>
     <div class="h-full select-none">
@@ -41,9 +41,9 @@ setInterval(async () => {
             <h1 class="mt-auto mb-auto ml-5">Playing as Group {{ $route.params.id }}</h1>
         </div>
         <div class="flex flex-row h-[90%] mt-2 mb-2">
-            <div class="transition duration-300 grid grid-cols-8 grid-rows-5 h-[90%] ml-auto mr-auto mt-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2 w-[50%]" :class="{ 'w-[80%]': progress >= 4, 'w-[50%]': progress >= 0 && progress < 4 }">
+            <div class="transition duration-300 grid grid-cols-8 grid-rows-6 h-[90%] ml-auto mr-auto mt-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2 w-[50%]" :class="{ 'w-[80%]': progress >= 4, 'w-[50%]': progress >= 0 && progress < 4 }">
                 <div class="row-start-1 row-end-2 col-start-1 col-end-2 bg-gray-200 rounded-3xl"></div>
-                <div class="row-start-2 row-end-6 col-start-1 col-end-2 bg-gray-100 rounded-3xl flex flex-col pl-4 pr-4">
+                <div class="row-start-2 row-end-7 col-start-1 col-end-2 bg-gray-100 rounded-3xl flex flex-col pl-4 pr-4">
                     <div class="flex-auto flex justify-center items-center border-b border-b-gray-300">
                         <h1 class="text-center text-4xl h-fit">100</h1>
                     </div>
@@ -53,8 +53,11 @@ setInterval(async () => {
                     <div class="flex-auto flex justify-center items-center border-b border-b-gray-300">
                         <h1 class="text-center text-4xl h-fit">300</h1>
                     </div>
-                    <div class="flex-auto flex justify-center items-center">
+                    <div class="flex-auto flex justify-center items-center border-b border-b-gray-300">
                         <h1 class="text-center text-4xl h-fit">400</h1>
+                    </div>
+                    <div class="flex-auto flex justify-center items-center">
+                        <h1 class="text-center text-3xl h-fit">Total</h1>
                     </div>
                 </div>
                 <div class="col-start-2 col-end-9 row-start-1 row-end-2 bg-gray-100 rounded-3xl grid grid-cols-7 grid-rows-1 pt-6 pb-6">
@@ -80,34 +83,37 @@ setInterval(async () => {
                         <h1 class="text-center text-4xl h-fit ml-auto mr-auto">G7</h1>
                     </div>
                 </div>
-                <ProblemOverview :enabled="enabled(1)" :status="problemStatusList[1][1]"/>
-                <ProblemOverview :enabled="enabled(2)" :status="problemStatusList[2][1]"/>
-                <ProblemOverview :enabled="enabled(3)" :status="problemStatusList[3][1]"/>
-                <ProblemOverview :enabled="enabled(4)" :status="problemStatusList[4][1]"/>
-                <ProblemOverview :enabled="enabled(5)" :status="problemStatusList[5][1]"/>
-                <ProblemOverview :enabled="enabled(6)" :status="problemStatusList[6][1]"/>
-                <ProblemOverview :enabled="enabled(7)" :status="problemStatusList[7][1]"/>
-                <ProblemOverview :enabled="enabled(1)" :status="problemStatusList[1][2]"/>
-                <ProblemOverview :enabled="enabled(2)" :status="problemStatusList[2][2]"/>
-                <ProblemOverview :enabled="enabled(3)" :status="problemStatusList[3][2]"/>
-                <ProblemOverview :enabled="enabled(4)" :status="problemStatusList[4][2]"/>
-                <ProblemOverview :enabled="enabled(5)" :status="problemStatusList[5][2]"/>
-                <ProblemOverview :enabled="enabled(6)" :status="problemStatusList[6][2]"/>
-                <ProblemOverview :enabled="enabled(7)" :status="problemStatusList[7][2]"/>
-                <ProblemOverview :enabled="enabled(1)" :status="problemStatusList[1][3]"/>
-                <ProblemOverview :enabled="enabled(2)" :status="problemStatusList[2][3]"/>
-                <ProblemOverview :enabled="enabled(3)" :status="problemStatusList[3][3]"/>
-                <ProblemOverview :enabled="enabled(4)" :status="problemStatusList[4][3]"/>
-                <ProblemOverview :enabled="enabled(5)" :status="problemStatusList[5][3]"/>
-                <ProblemOverview :enabled="enabled(6)" :status="problemStatusList[6][3]"/>
-                <ProblemOverview :enabled="enabled(7)" :status="problemStatusList[7][3]"/>
-                <ProblemOverview :enabled="enabled(1)" :status="problemStatusList[1][4]"/>
-                <ProblemOverview :enabled="enabled(2)" :status="problemStatusList[2][4]"/>
-                <ProblemOverview :enabled="enabled(3)" :status="problemStatusList[3][4]"/>
-                <ProblemOverview :enabled="enabled(4)" :status="problemStatusList[4][4]"/>
-                <ProblemOverview :enabled="enabled(5)" :status="problemStatusList[5][4]"/>
-                <ProblemOverview :enabled="enabled(6)" :status="problemStatusList[6][4]"/>
-                <ProblemOverview :enabled="enabled(7)" :status="problemStatusList[7][4]"/>
+                <ProblemOverview :group="1" :problem-list="problemList" :score="100"></ProblemOverview>
+                <ProblemOverview :group="2" :problem-list="problemList" :score="100"></ProblemOverview>
+                <ProblemOverview :group="3" :problem-list="problemList" :score="100"></ProblemOverview>
+                <ProblemOverview :group="4" :problem-list="problemList" :score="100"></ProblemOverview>
+                <ProblemOverview :group="5" :problem-list="problemList" :score="100"></ProblemOverview>
+                <ProblemOverview :group="6" :problem-list="problemList" :score="100"></ProblemOverview>
+                <ProblemOverview :group="7" :problem-list="problemList" :score="100"></ProblemOverview>
+                <ProblemOverview :group="1" :problem-list="problemList" :score="200"></ProblemOverview>
+                <ProblemOverview :group="2" :problem-list="problemList" :score="200"></ProblemOverview>
+                <ProblemOverview :group="3" :problem-list="problemList" :score="200"></ProblemOverview>
+                <ProblemOverview :group="4" :problem-list="problemList" :score="200"></ProblemOverview>
+                <ProblemOverview :group="5" :problem-list="problemList" :score="200"></ProblemOverview>
+                <ProblemOverview :group="6" :problem-list="problemList" :score="200"></ProblemOverview>
+                <ProblemOverview :group="7" :problem-list="problemList" :score="200"></ProblemOverview>
+                <ProblemOverview :group="1" :problem-list="problemList" :score="300"></ProblemOverview>
+                <ProblemOverview :group="2" :problem-list="problemList" :score="300"></ProblemOverview>
+                <ProblemOverview :group="3" :problem-list="problemList" :score="300"></ProblemOverview>
+                <ProblemOverview :group="4" :problem-list="problemList" :score="300"></ProblemOverview>
+                <ProblemOverview :group="5" :problem-list="problemList" :score="300"></ProblemOverview>
+                <ProblemOverview :group="6" :problem-list="problemList" :score="300"></ProblemOverview>
+                <ProblemOverview :group="7" :problem-list="problemList" :score="300"></ProblemOverview>
+                <ProblemOverview :group="1" :problem-list="problemList" :score="400"></ProblemOverview>
+                <ProblemOverview :group="2" :problem-list="problemList" :score="400"></ProblemOverview>
+                <ProblemOverview :group="3" :problem-list="problemList" :score="400"></ProblemOverview>
+                <ProblemOverview :group="4" :problem-list="problemList" :score="400"></ProblemOverview>
+                <ProblemOverview :group="5" :problem-list="problemList" :score="400"></ProblemOverview>
+                <ProblemOverview :group="6" :problem-list="problemList" :score="400"></ProblemOverview>
+                <ProblemOverview :group="7" :problem-list="problemList" :score="400"></ProblemOverview>
+                <div class="row-start-6 row-end-7 col-start-2 col-end-3 bg-gray-200 rounded-3xl">
+
+                </div>
             </div>
             <ProblemView :problem-status-list="problemStatusList[Number($route.params.id)]" :problem-list="problemList" :group="Number($route.params.id)"/>
         </div>

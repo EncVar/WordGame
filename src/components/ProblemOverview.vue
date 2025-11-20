@@ -1,22 +1,63 @@
 <script setup lang="ts">
-import { ProblemStatus } from '../problem';
+import { ref, watch } from 'vue';
+import { ProblemList } from '../problem';
 
-defineProps<{
-    enabled: boolean;
-    status: ProblemStatus;
+const props = defineProps<{
+    group: number,
+    score: number,
+    problemList: ProblemList;
 }>();
+
+
+let answering = ref(0);
+let failed = ref(0);
+let judging = ref(0);
+let solved = ref(0);
+
+setInterval(() => {
+    for (let item of props.problemList) {
+        let a: number = 0;
+        let f: number = 0;
+        let j: number = 0;
+        let s: number = 0;
+        if (item.group === props.group && item.score === props.score) {
+            switch (item.status) {
+                case "answering":
+                    a++;
+                    break;
+                case "failed":
+                    f++;
+                    break;
+                case "judging":
+                    j++;
+                    break;
+                case "solved":
+                    s++;
+                    break;
+            }
+        }
+        answering.value = a;
+        failed.value = f;
+        judging.value = j;
+        solved.value = s;
+    }
+}, 200)
+
 </script>
 
 <template>
-    <div :class="'rounded-3xl h-full w-full flex justify-center items-center hover:shadow-md border border-gray-200 transition ease-in-out duration-200 hover:scale-101 ' + 
-        (status === 'solved' ? 'bg-green-700' : '') +
-        (status === 'failed' ? 'bg-red-700' : '') +
-        (status === 'judging' ? 'bg-yellow-700' : '') +
-        (status === 'answering' ? 'bg-gray-300' : '')">
-        <h1 v-if="status === 'unrevealed'" class="text-center">Unrevealed</h1>
-        <h1 v-if="status === 'judging'" class="text-center text-white">Judging</h1>
-        <h1 v-if="status === 'answering'" class="text-center">Answering</h1>
-        <h1 v-if="status === 'solved'" class="text-center text-white">Solved</h1>
-        <h1 v-if="status === 'failed'" class="text-center text-white">Failed</h1>
+    <div class="rounded-3xl h-full w-full border border-gray-200 grid grid-cols-2 grid-rows-2 gap-1"> 
+        <div class="mt-1 ml-1 h-auto w-auto rounded-3xl bg-gray-400 transition ease-in-out duration-200 hover:scale-101 hover:shadow-md opacity-60 flex items-center justify-center">
+            <h1 class="text-2xl"> {{ answering }} </h1>
+        </div>
+        <div class="mt-1 mr-1 h-auto w-auto rounded-3xl bg-yellow-600 transition ease-in-out duration-200 hover:scale-101 hover:shadow-md opacity-80 flex items-center justify-center">
+            <h1 class="text-2xl text-white"> {{ judging }} </h1>
+        </div>
+        <div class="mb-1 ml-1 h-auto w-auto rounded-3xl bg-red-700 transition ease-in-out duration-200 hover:scale-101 hover:shadow-md opacity-80 flex items-center justify-center">
+            <h1 class="text-2xl text-white"> {{ failed }} </h1>
+        </div>
+        <div class="mb-1 mr-1 h-auto w-auto rounded-3xl bg-green-700 transition ease-in-out duration-200 hover:scale-101 hover:shadow-md opacity-80 flex items-center justify-center">
+            <h1 class="text-2xl text-white"> {{ solved }} </h1>
+        </div>
     </div>
 </template>

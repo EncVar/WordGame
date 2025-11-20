@@ -2,13 +2,11 @@ import axios from "axios";
 import { ProblemList } from "./problem";
 import { GroupStatus } from "./group";
 
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = "http://" + location.hostname + ":8000/api";
 
 export async function getProblemList(): Promise<ProblemList> {
-
-        const response = await axios.get(`${API_BASE_URL}/problems`);
-        return response.data;
-    
+    const response = await axios.get(`${API_BASE_URL}/problems`);
+    return response.data;
 }
 
 export async function getAllProblems(): Promise<ProblemList> {
@@ -26,8 +24,13 @@ export async function startNewGame(): Promise<void> {
     return;
 }
 
-export async function nextProblem(group: number): Promise<void> {
-    await axios.get(`${API_BASE_URL}/group/${group}/next`);
+export async function finish(group: number): Promise<void> {
+    await axios.get(`${API_BASE_URL}/group/${group}/finish`);
+    return;
+}
+
+export async function reveal(group: number): Promise<void> {
+    await axios.get(`${API_BASE_URL}/group/${group}/reveal`);
     return;
 }
 
