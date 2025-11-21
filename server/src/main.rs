@@ -136,7 +136,6 @@ struct Problem {
     pub id: u32,
     pub question: String,
     pub answer: String,
-    pub limit: u32,
     pub score: u32,
 }
 
@@ -227,10 +226,10 @@ async fn get_group_status() -> Json<Vec<GroupStatus>> {
 async fn get_judge_task(group: u32) -> Json<Option<Problem>> {
     let judge_tasks = &mut JUDGE_TASKS.lock().await;
     let problem_list = &PROBLEM_LIST.lock().await;
-    if judge_tasks.is_empty() {
+    if judge_tasks[group as usize].is_empty() {
         return Json(None);
     }
-    while !judge_tasks.is_empty() && judge_tasks[group as usize].front().is_none() {
+    while !judge_tasks[group as usize].is_empty() && judge_tasks[group as usize].front().is_none() {
         judge_tasks[group as usize].pop_front();
     }
     Json(problem_list[*judge_tasks[group as usize].front().unwrap() as usize].problem.clone())
@@ -245,11 +244,11 @@ async fn judge(group: u32, result: &str) -> Status {
     }
     
     match result {
-        "wrong" => {
+        "incorrect" => {
             problem_list[*judge_tasks[group as usize].front().unwrap() as usize].status = ProblemStatus::Failed;
             judge_tasks[group as usize].pop_front();
         },
-        "right" => {
+        "correct" => {
             problem_list[*judge_tasks[group as usize].front().unwrap() as usize].status = ProblemStatus::Solved;
             judge_tasks[group as usize].pop_front();
         },

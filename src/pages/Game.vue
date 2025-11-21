@@ -12,6 +12,7 @@ import ProblemOverview from '../components/ProblemOverview.vue';
 
 let problemStatusList = ref(new Array<Array<ProblemStatus>>(8).fill([]));
 let problemList = ref([] as ProblemList);
+let total = ref(new Array<number>(8).fill(0));
 
 function back() {
     router.replace("/");
@@ -26,22 +27,29 @@ let progress = ref(0);
 
 setInterval(async () => {
     problemList.value = await getProblemList();
-    //console.log(problemList.value);
+    let totalValue = new Array<number>(8).fill(0);
+    for (let item of problemList.value) {
+        if (item.status === "solved")
+            totalValue[item.group] += item.score;
+    }
+    total.value = totalValue;
+
     for (let item of problemList.value) 
         if (problemStatusList.value[item.group])
             problemStatusList.value[item.group].push(item.status);
 }, 300);
 </script>
 <template>
-    <div class="h-full select-none">
+    <div class="transition duration-300 h-full select-none">
         <div class="flex flex-row gap-4 bg-amber-100 h-15">
             <Button @click="back()" class="ml-2.5 mt-auto mb-auto"> 
                 <p class="mt-auto mb-auto mr-auto ml-auto relative">< Back</p> 
             </Button>
             <h1 class="mt-auto mb-auto ml-5">Playing as Group {{ $route.params.id }}</h1>
         </div>
-        <div class="flex flex-row h-[90%] mt-2 mb-2">
-            <div class="transition duration-300 grid grid-cols-8 grid-rows-6 h-[90%] ml-auto mr-auto mt-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2 w-[50%]" :class="{ 'w-[80%]': progress >= 4, 'w-[50%]': progress >= 0 && progress < 4 }">
+        <div class="transition duration-300 flex flex-row h-[90%] mt-2 mb-2">
+            <div class="transition duration-300 grid grid-cols-8 grid-rows-6 h-[90%] ml-auto mr-auto mt-auto mb-auto border rounded-4xl border-gray-300 gap-2 p-2 w-[50%]" 
+                :class="{ 'w-[80%]': progress >= 4, 'w-[50%]': progress >= 0 && progress < 4 }">
                 <div class="row-start-1 row-end-2 col-start-1 col-end-2 bg-gray-200 rounded-3xl"></div>
                 <div class="row-start-2 row-end-7 col-start-1 col-end-2 bg-gray-100 rounded-3xl flex flex-col pl-4 pr-4">
                     <div class="flex-auto flex justify-center items-center border-b border-b-gray-300">
@@ -111,8 +119,26 @@ setInterval(async () => {
                 <ProblemOverview :group="5" :problem-list="problemList" :score="400"></ProblemOverview>
                 <ProblemOverview :group="6" :problem-list="problemList" :score="400"></ProblemOverview>
                 <ProblemOverview :group="7" :problem-list="problemList" :score="400"></ProblemOverview>
-                <div class="row-start-6 row-end-7 col-start-2 col-end-3 bg-gray-200 rounded-3xl">
-
+                <div class="row-start-6 row-end-7 col-start-2 col-end-3 bg-gray-200 rounded-3xl flex items-center justify-center">
+                    <h1 class="text-4xl"> {{ total[1] }} </h1>
+                </div>
+                <div class="row-start-6 row-end-7 col-start-3 col-end-4 bg-gray-200 rounded-3xl flex items-center justify-center">
+                    <h1 class="text-4xl"> {{ total[2] }} </h1>
+                </div>
+                <div class="row-start-6 row-end-7 col-start-4 col-end-5 bg-gray-200 rounded-3xl flex items-center justify-center">
+                    <h1 class="text-4xl"> {{ total[3] }} </h1>
+                </div>
+                <div class="row-start-6 row-end-7 col-start-5 col-end-6 bg-gray-200 rounded-3xl flex items-center justify-center">
+                    <h1 class="text-4xl"> {{ total[4] }} </h1>
+                </div>
+                <div class="row-start-6 row-end-7 col-start-6 col-end-7 bg-gray-200 rounded-3xl flex items-center justify-center">
+                    <h1 class="text-4xl"> {{ total[5] }} </h1>
+                </div>
+                <div class="row-start-6 row-end-7 col-start-7 col-end-8 bg-gray-200 rounded-3xl flex items-center justify-center">
+                    <h1 class="text-4xl"> {{ total[6] }} </h1>
+                </div>
+                <div class="row-start-6 row-end-7 col-start-8 col-end-9 bg-gray-200 rounded-3xl flex items-center justify-center">
+                    <h1 class="text-4xl"> {{ total[7] }} </h1>
                 </div>
             </div>
             <ProblemView :problem-status-list="problemStatusList[Number($route.params.id)]" :problem-list="problemList" :group="Number($route.params.id)"/>

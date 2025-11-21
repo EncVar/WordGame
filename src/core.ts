@@ -1,5 +1,5 @@
 import axios from "axios";
-import { ProblemList } from "./problem";
+import { Problem, ProblemList } from "./problem";
 import { GroupStatus } from "./group";
 
 const API_BASE_URL = "http://" + location.hostname + ":8000/api";
@@ -39,7 +39,11 @@ export async function getGroupStatus(): Promise<GroupStatus[]> {
     return response.data;
 }
 
-// export async function judge(group: number, correct: boolean): Promise<void> {
-//     await axios.post(`${API_BASE_URL}/group/${group}/${correct ? "correct" : "wrong"}`);
-//     return;
-// }
+export async function getJudgeTask(group: number): Promise<Problem | null> {
+    const response = await axios.get(`${API_BASE_URL}/judge/${group}`);
+    return response.data;
+}
+
+export async function judge(group: number, correct: boolean): Promise<void> {
+    await axios.post(`${API_BASE_URL}/judge/${group}/${correct ? "correct" : "incorrect"}`);
+}

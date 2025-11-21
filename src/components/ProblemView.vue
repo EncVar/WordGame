@@ -40,14 +40,24 @@ watch(reveal, () => {
 
 setInterval(async () => {
     //console.log(props.problemList)
+    let groupStatus = await getGroupStatus();
+    for (let status of groupStatus) {
+        if (status.id == props.group) {
+            if (status.end)
+                timeout.value = status.end - Math.round(Date.now() / 1000);
+            if (timeout.value < 0)
+                end.value = true;
+        }
+    }
     for (let item of props.problemList) {
         if (item.group == props.group && item.status == "answering") {
-            let groupStatus = await getGroupStatus();
             // console.log(groupStatus);
             for (let status of groupStatus) {
                 if (status.id == props.group) {
                     if (status.end)
                         timeout.value = status.end - Math.round(Date.now() / 1000);
+                    if (timeout.value < 0)
+                        end.value = true;
                     if (item.problem)
                         currentProblem.value = item.problem;
                     if (timeout.value <= 0) {
@@ -78,8 +88,6 @@ async function start() {
     let problemList = await getProblemList();
     for (let item of problemList) {
         if (item.group == props.group && item.status == "answering") {
-            if (item.end)
-                timeout.value = props.group - Math.round(Date.now() / 1000);
             if (item.problem)
                 currentProblem.value = item.problem;
             if (timeout.value <= 0) {
@@ -96,6 +104,12 @@ async function start() {
 
 async function next() {
     await finish(props.group);
+    for (let groupStatus of await getGroupStatus()) {
+        if (groupStatus.id == props.group)
+            setTimeout(() => {
+                progress.value = groupStatus.progress;
+            }, 200);
+    };
     reveal.value = false;
 }
 </script>

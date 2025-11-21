@@ -6,7 +6,6 @@ export interface Problem {
     id: number;
     question: string;
     answer: string;
-    limit: number;
     score: Score;
 }
 
@@ -15,5 +14,4 @@ export type ProblemList = {
     score: Score;
     group: number;
     problem?: Problem;
-    end?: number;
 }[];

@@ -16,7 +16,7 @@ watch(() => props.disabled, (nv) => {
 </script>
 
 <template @click="emit('click')">
-    <div class="transition ease-in-out duration-200 w-25 h-10 text-xl bg-gray-400 hover:active:bg-gray-500 select-none hover:scale-110 rounded-3xl text-center p-0 flex" @click="emit('click')">
-        <slot class=""></slot>
+    <div class="transition ease-in-out duration-200 w-25 h-10 text-xl bg-gray-400 hover:active:bg-gray-500 hover:active:scale-100 select-none hover:scale-110 rounded-3xl text-center p-0 flex" @click="emit('click')">
+        <slot></slot>
     </div>
 </template>
